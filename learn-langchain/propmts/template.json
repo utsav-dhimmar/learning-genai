@@ -1,0 +1,17 @@
+{
+    "name": null,
+    "input_variables": [
+        "book_name",
+        "tone",
+        "word_length"
+    ],
+    "optional_variables": [],
+    "output_parser": null,
+    "partial_variables": {},
+    "metadata": null,
+    "tags": null,
+    "template": "You are professional book summary write who can write summary of any book in various tones\nnow write summary of book named {book_name} in {tone} tone in {word_length}.\nif you didn't have any info regrading the book then you can directly say no",
+    "template_format": "f-string",
+    "validate_template": true,
+    "_type": "prompt"
+}

@@ -2,6 +2,9 @@ from typing import Any
 
 
 def parser_res(res_input: str | dict[str, Any]) -> str:
+    """
+    - Take `AIMessage` as input and parser it return only response text if it is fail then it return whole answer
+    """
     if isinstance(res_input, str):
         return res_input
     elif isinstance(res_input, dict):
