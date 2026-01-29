@@ -6,7 +6,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 load_dotenv()
 # setup model
 llm: ChatGoogleGenerativeAI = ChatGoogleGenerativeAI(
-    model="gemini-3-flash-preview",
+    # model="gemini-3-flash-preview",
+    model="gemini-2.5-flash-lite",
     # max_tokens=100,
     max_retries=2,
     streaming=True,
@@ -36,5 +37,9 @@ while True:
         print("BYE BYE!!!")
         break
 
-    res = chain.invoke({"input": user_input})
-    print(f"AI:{res}")
+    res = chain.stream({"input": user_input})
+    print(f"{'---'*20} AI {'---'*20}")
+    for ch in res:
+        print(ch)
+    # print(f"AI:{res}")
+    print(f"{'---'*20} AI Resposne End {'---'*20}")
