@@ -13,6 +13,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
 
+# from langchain_community.vectorstores import FAISS
+
 load_dotenv()
 
 
@@ -57,7 +59,7 @@ chroma_instace = Chroma(
 )
 
 
-output_prase = StrOutputParser()
+output_praser = StrOutputParser()
 # now it procecc will got propmt -> it got to llm and -> output
 
 # setup model
@@ -80,16 +82,17 @@ prompt = PromptTemplate(
     input_variables=["context", "query"],
 )
 
-chain = prompt | llm | output_prase
+chain = prompt | llm | output_praser
 
 
 video_url = input(
-    "enter video url(make sure video has transcibe enable Hindi or English): "
+    "enter video url(make sure video has transcibe enable end it shoul be either Hindi or English): "
 )
 video_id = get_youtube_id_from_url(video_url)
 transcribe = get_transcribe_as_text(video_id)
-chucks = text_splitter.create_documents(split_text(transcribe))
-vector_store = chroma_instace.from_documents(documents=chucks)
+chunks = text_splitter.create_documents(split_text(transcribe))
+vector_store = chroma_instace.from_documents(documents=chunks)
+# vector_store = FAISS.from_documents(chunks, embeddings)
 retriveral = vector_store.as_retriever(search_type="similarity")
 
 
