@@ -2,6 +2,7 @@ import re
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -12,8 +13,6 @@ from langchain_google_genai import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import TextFormatter
-
-# from langchain_community.vectorstores import FAISS
 
 load_dotenv()
 
@@ -91,8 +90,8 @@ video_url = input(
 video_id = get_youtube_id_from_url(video_url)
 transcribe = get_transcribe_as_text(video_id)
 chunks = text_splitter.create_documents(split_text(transcribe))
-vector_store = chroma_instace.from_documents(documents=chunks)
-# vector_store = FAISS.from_documents(chunks, embeddings)
+# vector_store = chroma_instace.from_documents(documents=chunks)
+vector_store = FAISS.from_documents(chunks, embeddings)
 retriveral = vector_store.as_retriever(search_type="similarity")
 
 
@@ -114,8 +113,8 @@ while True:
         break
 
     res = chain.stream({"context": context, "query": user_input})
-    print(f"{"--"*20} AI Response{"--"*20}")
+    print(f"{'--' * 20} AI Response{'--' * 20}")
     for r in res:
         print(r)
 
-    print(f"{"--"*20} AI Response End{"--"*20}")
+    print(f"{'--' * 20} AI Response End{'--' * 20}")
