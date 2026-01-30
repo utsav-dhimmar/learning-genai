@@ -1,10 +1,66 @@
+import re
+
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_chroma import Chroma
+from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import PromptTemplate
+from langchain_google_genai import (
+    ChatGoogleGenerativeAI,
+    GoogleGenerativeAIEmbeddings,
+)
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
 
 load_dotenv()
+
+
+def get_youtube_id_from_url(url: str) -> str:
+    """Get Youtube video id from the youtube url"""
+    match = re.match(
+        r"^https?://.*(?:youtu.be/|v/|u/\w/|embed/|watch\?v=)([^#&?]*).*$", url
+    )
+    if match:
+        return match.group(1)
+    else:
+        raise ValueError("Invalid YouTube URL")
+
+
+def get_transcribe_as_text(video_id) -> str:
+    """takes youtube video id as input and return its transcribe as text"""
+    ytt_api = YouTubeTranscriptApi()
+
+    fetch_transcribe = ytt_api.fetch(video_id)
+    formatter = TextFormatter()
+    transcribe = formatter.format_transcript(fetch_transcribe)
+    print(f"{transcribe=}")
+    return transcribe
+
+
+# https://www.youtube.com/watch?v=30JGQcRB3Nw
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+
+
+def split_text(text: str) -> list[str]:
+    return text_splitter.split_text(text)
+
+
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="gemini-embedding-001",
+)
+
+
+chroma_instace = Chroma(
+    collection_name="youtube_video_info",
+    embedding_function=embeddings,
+    persist_directory="chroma_db_data",
+)
+
+
+output_prase = StrOutputParser()
+# now it procecc will got propmt -> it got to llm and -> output
+
 # setup model
 llm: ChatGoogleGenerativeAI = ChatGoogleGenerativeAI(
     # model="gemini-3-pro-preview",
@@ -15,41 +71,44 @@ llm: ChatGoogleGenerativeAI = ChatGoogleGenerativeAI(
     streaming=True,
 )
 
-
-chat_history: list[HumanMessage | AIMessage] = []
-
-
-prompt = ChatPromptTemplate(
-    [
-        (
-            "system",
-            "You are a helpful and accurate AI assistant. When performing calculations, think step-by-step and verify your arithmetic carefully. Always provide correct mathematical answers.",
-        ),  # init messages
-        MessagesPlaceholder(variable_name="chat_history"),  # for chat history
-        ("human", "{input}"),
-    ]
+prompt = PromptTemplate(
+    template="""
+    You are very smart ai chat bot that only give relevenat answer from the give transcribe context,
+    if context do not have Enough information. Then you can Politely Say that the context do not have information regarding this query .
+    {context}
+    query:{query}
+    """,
+    input_variables=["context", "query"],
 )
-
-
-output_prase = StrOutputParser()
-# now it procecc will got propmt -> it got to llm and -> output
-
 
 chain = prompt | llm | output_prase
 
-print("Simple AI bot built using langchain")
 
+video_url = input("enter video url")
+video_id = get_youtube_id_from_url(video_url)
+transcribe = get_transcribe_as_text(video_id)
+chucks = text_splitter.create_documents(split_text(transcribe))
+vector_store = chroma_instace.from_documents(documents=chucks)
+retriveral = vector_store.as_retriever(search_type="similarity")
+
+
+def get_relevant_documents(q: str) -> list[Document]:
+    return retriveral.invoke(q)
+
+
+def get_context_as_text(docs: list[Document]) -> str:
+    return "\n\n\n\n".join(doc.page_content for doc in docs)
+
+
+print("Simple AI bot built using langchain")
 while True:
     user_input = input("You:").strip()
-    chat_history.append(HumanMessage(content=user_input))
-
+    docs = get_relevant_documents(user_input)
+    context = get_context_as_text(docs)
     if user_input.lower() == "exit" or user_input.lower == "bye":
-        print(chat_history)
         print("BYE BYE!!!")
         break
 
-    res: str = chain.invoke({"chat_history": chat_history, "input": user_input})
+    res: str = chain.invoke({"context": context, "query": user_input})
 
-    # add in chat history
-    chat_history.append(AIMessage(content=res))
     print(f"AI:{res}")
