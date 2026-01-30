@@ -31,10 +31,9 @@ def get_transcribe_as_text(video_id) -> str:
     """takes youtube video id as input and return its transcribe as text"""
     ytt_api = YouTubeTranscriptApi()
 
-    fetch_transcribe = ytt_api.fetch(video_id)
+    fetch_transcribe = ytt_api.fetch(video_id, languages=("en", "hi"))
     formatter = TextFormatter()
     transcribe = formatter.format_transcript(fetch_transcribe)
-    print(f"{transcribe=}")
     return transcribe
 
 
@@ -73,7 +72,7 @@ llm: ChatGoogleGenerativeAI = ChatGoogleGenerativeAI(
 
 prompt = PromptTemplate(
     template="""
-    You are very smart ai chat bot that only give relevenat answer from the give transcribe context,
+    You are very smart ai chat bot that only give relevenat answer in plain text format from the give transcribe context,
     if context do not have Enough information. Then you can Politely Say that the context do not have information regarding this query .
     {context}
     query:{query}
@@ -84,7 +83,9 @@ prompt = PromptTemplate(
 chain = prompt | llm | output_prase
 
 
-video_url = input("enter video url")
+video_url = input(
+    "enter video url(make sure video has transcibe enable Hindi or English): "
+)
 video_id = get_youtube_id_from_url(video_url)
 transcribe = get_transcribe_as_text(video_id)
 chucks = text_splitter.create_documents(split_text(transcribe))
@@ -105,10 +106,13 @@ while True:
     user_input = input("You:").strip()
     docs = get_relevant_documents(user_input)
     context = get_context_as_text(docs)
-    if user_input.lower() == "exit" or user_input.lower == "bye":
+    if user_input.lower() == "exit" or user_input.lower() == "bye":
         print("BYE BYE!!!")
         break
 
-    res: str = chain.invoke({"context": context, "query": user_input})
+    res = chain.stream({"context": context, "query": user_input})
+    print(f"{"--"*20} AI Response{"--"*20}")
+    for r in res:
+        print(r)
 
-    print(f"AI:{res}")
+    print(f"{"--"*20} AI Response End{"--"*20}")
